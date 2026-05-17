@@ -63,6 +63,17 @@ async function run() {
     });
 
     // ticket related
+    // (vendors added all tickets)
+    app.get("/tickets/:email", async (req, res) => {
+      const param = req.params.email;
+
+      const filter = { vendorEmail: param };
+
+      const findTickets = ticketCollection.find(filter);
+      const result = await findTickets.toArray();
+      res.send(result);
+    });
+
     app.post("/tickets", async (req, res) => {
       const {
         ticketTitle,
