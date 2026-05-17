@@ -32,8 +32,15 @@ async function run() {
 
     const db = client.db("ticketsZone");
     const userCollection = db.collection("users");
+    const ticketCollection = db.collection("tickets");
 
     // users related api
+    app.get("/users", async (req, res) => {
+      const cursor = userCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
     app.post("/users", async (req, res) => {
       const { name, email } = req.body;
       const doc = {
@@ -52,6 +59,42 @@ async function run() {
       }
 
       const result = await userCollection.insertOne(doc);
+      res.status(201).send(result);
+    });
+
+    // ticket related
+    app.post("/tickets", async (req, res) => {
+      const {
+        ticketTitle,
+        ticketFrom,
+        ticketTo,
+        transportType,
+        ticketPrice,
+        ticketQuantity,
+        departureTime,
+        perks,
+        photoURL,
+        vendorName,
+        vendorEmail,
+      } = req.body;
+
+      const newTicket = {
+        ticketTitle: ticketTitle,
+        ticketFrom: ticketFrom,
+        ticketTo: ticketTo,
+        transportType: transportType,
+        ticketPrice: ticketPrice,
+        ticketQuantity: ticketQuantity,
+        departureTime: departureTime,
+        perks: perks,
+        photoURL: photoURL,
+        vendorName: vendorName,
+        vendorEmail: vendorEmail,
+        status: "pending",
+        createdAt: new Date(),
+      };
+
+      const result = await ticketCollection.insertOne(newTicket);
       res.status(201).send(result);
     });
 
