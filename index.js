@@ -74,7 +74,7 @@ async function run() {
       res.send(result);
     });
 
-    // get single ticket
+    // get single ticket for showing update form (vendor)
     app.get("/tickets/:id", async (req, res) => {
       const id = req.params.id;
       console.log(id);
@@ -83,6 +83,7 @@ async function run() {
       res.send(result);
     });
 
+    // ticket add (vendor)
     app.post("/tickets", async (req, res) => {
       const {
         ticketTitle,
@@ -118,7 +119,7 @@ async function run() {
       res.status(201).send(result);
     });
 
-    //ticket update
+    //ticket update (vendor)
     app.patch("/tickets/:id", async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
@@ -148,6 +149,47 @@ async function run() {
 
       const result = await ticketCollection.updateOne(filter, updateDocument);
       res.send(result);
+    });
+
+    // ticket delete (vendor)
+    app.delete("/tickets/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const result = await ticketCollection.deleteOne(filter);
+      res.send(result);
+    });
+
+    // all ticket for admin
+    app.get("/vendors-added-tickets", async (req, res) => {
+      const cursor = ticketCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    // ticket approved by admin
+    app.get("/approve-ticket/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const document = {
+        $set: {
+          status: "approved",
+        },
+      };
+
+      const result = await ticketCollection.updateOne(filter, document);
+    });
+
+    // ticket rejected by admin
+    app.get("/reject-ticket/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const document = {
+        $set: {
+          status: "rejected",
+        },
+      };
+
+      const result = await ticketCollection.updateOne(filter, document);
     });
 
     await client.db("admin").command({ ping: 1 });
