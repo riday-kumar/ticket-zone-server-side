@@ -62,6 +62,14 @@ async function run() {
       res.status(201).send(result);
     });
 
+    // user role
+    app.get("/user/role", async (req, res) => {
+      const email = req.query.email;
+      const query = { email };
+      const user = await userCollection.findOne(query);
+      res.send(user);
+    });
+
     // ticket related
     // (vendors get all tickets which he added)
     app.get("/tickets", async (req, res) => {
@@ -122,7 +130,16 @@ async function run() {
     //ticket update (vendor)
     app.patch("/tickets/:id", async (req, res) => {
       const id = req.params.id;
+
       const filter = { _id: new ObjectId(id) };
+
+      // check ticket status 'pending' or 'approved'
+      const thatTicket = await ticketCollection.findOne(filter);
+
+      if (thatTicket?.status === "rejected") {
+        return res.send({ message: "rejected tickets can't be update" });
+      }
+
       const {
         ticketTitle,
         ticketFrom,
@@ -155,11 +172,19 @@ async function run() {
     app.delete("/tickets/:id", async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
+
+      // check ticket status 'pending' or 'approved'
+      const thatTicket = await ticketCollection.findOne(filter);
+
+      if (thatTicket?.status === "rejected") {
+        return res.send({ message: "rejected tickets can't be Delete" });
+      }
+
       const result = await ticketCollection.deleteOne(filter);
       res.send(result);
     });
 
-    // all ticket for admin
+    // all tickets for admin
     app.get("/vendors-added-tickets", async (req, res) => {
       const cursor = ticketCollection.find();
       const result = await cursor.toArray();
@@ -167,8 +192,9 @@ async function run() {
     });
 
     // ticket approved by admin
-    app.get("/approve-ticket/:id", async (req, res) => {
+    app.patch("/approve-ticket/:id", async (req, res) => {
       const id = req.params.id;
+      console.log(id);
       const filter = { _id: new ObjectId(id) };
       const document = {
         $set: {
@@ -177,10 +203,11 @@ async function run() {
       };
 
       const result = await ticketCollection.updateOne(filter, document);
+      res.send(result);
     });
 
     // ticket rejected by admin
-    app.get("/reject-ticket/:id", async (req, res) => {
+    app.patch("/reject-ticket/:id", async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const document = {
@@ -190,6 +217,7 @@ async function run() {
       };
 
       const result = await ticketCollection.updateOne(filter, document);
+      res.send(result);
     });
 
     await client.db("admin").command({ ping: 1 });
