@@ -1,7 +1,7 @@
 const express = require("express");
 var cors = require("cors");
 const app = express();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 const port = process.env.PORT || 5000;
 const dns = require("dns");
@@ -63,14 +63,23 @@ async function run() {
     });
 
     // ticket related
-    // (vendors added all tickets)
-    app.get("/tickets/:email", async (req, res) => {
-      const param = req.params.email;
+    // (vendors get all tickets which he added)
+    app.get("/tickets", async (req, res) => {
+      const email = req.query.email;
 
-      const filter = { vendorEmail: param };
+      const filter = { vendorEmail: email };
 
       const findTickets = ticketCollection.find(filter);
       const result = await findTickets.toArray();
+      res.send(result);
+    });
+
+    // get single ticket
+    app.get("/tickets/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const result = await ticketCollection.findOne(filter);
       res.send(result);
     });
 
@@ -107,6 +116,38 @@ async function run() {
 
       const result = await ticketCollection.insertOne(newTicket);
       res.status(201).send(result);
+    });
+
+    //ticket update
+    app.patch("/tickets/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const {
+        ticketTitle,
+        ticketFrom,
+        ticketTo,
+        transportType,
+        ticketPrice,
+        ticketQuantity,
+        departureTime,
+        perks,
+      } = req.body;
+
+      const updateDocument = {
+        $set: {
+          ticketTitle,
+          ticketFrom,
+          ticketTo,
+          transportType,
+          ticketPrice,
+          ticketQuantity,
+          departureTime,
+          perks,
+        },
+      };
+
+      const result = await ticketCollection.updateOne(filter, updateDocument);
+      res.send(result);
     });
 
     await client.db("admin").command({ ping: 1 });
