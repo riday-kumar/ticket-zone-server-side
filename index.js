@@ -53,6 +53,14 @@ async function run() {
     app.patch("/users/:id", async (req, res) => {
       const id = req.params.id;
       const role = req.query.role;
+      const email = req.query.email;
+      // find that user and check he is admin or not
+      const isCheck = await userCollection.find({ email });
+      if (isCheck.role !== "admin") {
+        return res.send({
+          message: "You are not eligible for changing the role",
+        });
+      }
       // console.log(id);
       const filter = { _id: new ObjectId(id) };
       const document = {
@@ -136,6 +144,7 @@ async function run() {
         vendorName: vendorName,
         vendorEmail: vendorEmail,
         status: "pending",
+        advertise: "no",
         createdAt: new Date(),
       };
 
@@ -233,6 +242,47 @@ async function run() {
       };
 
       const result = await ticketCollection.updateOne(filter, document);
+      res.send(result);
+    });
+
+    // get all the approved tickets for 'advertising',
+    //  admin can select for show advertise
+    // advertise ticket page + Home page + all tickets
+    app.get("/approved-tickets", async (req, res) => {
+      const filter = { status: "approved" };
+      const cursor = ticketCollection.find(filter).sort({ createdAt: -1 });
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    // featured tickets that admin wanted to advertise shown in 'home'
+    app.get("/featured-tickets", async (req, res) => {
+      const filter = {
+        status: "approved",
+        advertise: "yes",
+      };
+
+      const cursor = ticketCollection.find(filter).limit(6);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    // advertise ticket by 'Admin'
+    app.patch("/advertise-tickets/:id", async (req, res) => {
+      const id = req.params.id;
+      const { advertise } = req.query;
+
+      const filter = {
+        _id: new ObjectId(id),
+      };
+
+      const updateDoc = {
+        $set: {
+          advertise: advertise,
+        },
+      };
+
+      const result = await ticketCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
 
