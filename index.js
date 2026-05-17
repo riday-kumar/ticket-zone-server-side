@@ -34,10 +34,34 @@ async function run() {
     const userCollection = db.collection("users");
     const ticketCollection = db.collection("tickets");
 
+    // user role
+    app.get("/user/role", async (req, res) => {
+      const email = req.query.email;
+      const query = { email };
+      const user = await userCollection.findOne(query);
+      res.send(user);
+    });
+
     // users related api
     app.get("/users", async (req, res) => {
       const cursor = userCollection.find();
       const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    // given access of ------>'admin' or 'vendor'
+    app.patch("/users/:id", async (req, res) => {
+      const id = req.params.id;
+      const role = req.query.role;
+      // console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const document = {
+        $set: {
+          role: role,
+        },
+      };
+
+      const result = await userCollection.updateOne(filter, document);
       res.send(result);
     });
 
@@ -60,14 +84,6 @@ async function run() {
 
       const result = await userCollection.insertOne(doc);
       res.status(201).send(result);
-    });
-
-    // user role
-    app.get("/user/role", async (req, res) => {
-      const email = req.query.email;
-      const query = { email };
-      const user = await userCollection.findOne(query);
-      res.send(user);
     });
 
     // ticket related
