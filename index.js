@@ -136,8 +136,8 @@ async function run() {
         ticketFrom: ticketFrom,
         ticketTo: ticketTo,
         transportType: transportType,
-        ticketPrice: ticketPrice,
-        ticketQuantity: ticketQuantity,
+        ticketPrice: Number(ticketPrice),
+        ticketQuantity: Number(ticketQuantity),
         departureTime: departureTime,
         perks: perks,
         photoURL: photoURL,
@@ -247,15 +247,58 @@ async function run() {
 
     // get all the approved tickets for 'advertising',
     //  admin can select for show advertise
-    // advertise ticket page + Home page + all tickets
+    // advertise ticket page + Home page + all tickets page
     app.get("/approved-tickets", async (req, res) => {
-      const filter = { status: "approved" };
-      const cursor = ticketCollection.find(filter).sort({ createdAt: -1 });
-      const result = await cursor.toArray();
+      const { from, to, type, sort } = req.query;
+
+      const query = { status: "approved" };
+
+      // From + To search
+      if (from || to) {
+        query.$or = [];
+
+        if (from) {
+          query.$or.push({
+            ticketFrom: { $regex: from, $options: "i" },
+          });
+        }
+
+        if (to) {
+          query.$or.push({
+            ticketTo: { $regex: to, $options: "i" },
+          });
+        }
+      }
+
+      // Sort
+      const options = {
+        sort: {},
+      };
+
+      if (sort === "low") {
+        options.sort.ticketPrice = 1;
+      } else if (sort === "high") {
+        options.sort.ticketPrice = -1;
+      } else {
+        options.sort.createdAt = -1;
+      }
+
+      // Transport filter
+      if (type === "all-type") {
+        options.sort.createdAt = -1;
+        query.transportType = {
+          $in: ["Bus", "Train", "Flight", "Ship"],
+        };
+      } else if (type) {
+        query.transportType = type;
+      }
+
+      const result = await ticketCollection.find(query, options).toArray();
+
       res.send(result);
     });
 
-    // featured tickets that admin wanted to advertise shown in 'home'
+    // featured tickets that admin wanted to advertise + shown in 'home'
     app.get("/featured-tickets", async (req, res) => {
       const filter = {
         status: "approved",
