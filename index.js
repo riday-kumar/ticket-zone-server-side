@@ -33,6 +33,7 @@ async function run() {
     const db = client.db("ticketsZone");
     const userCollection = db.collection("users");
     const ticketCollection = db.collection("tickets");
+    const bookingCollection = db.collection("bookings");
 
     // user role
     app.get("/user/role", async (req, res) => {
@@ -106,10 +107,10 @@ async function run() {
       res.send(result);
     });
 
-    // get single ticket for showing update form (vendor)
+    // get single ticket (vendor)
     app.get("/tickets/:id", async (req, res) => {
       const id = req.params.id;
-      console.log(id);
+      // console.log(id);
       const filter = { _id: new ObjectId(id) };
       const result = await ticketCollection.findOne(filter);
       res.send(result);
@@ -326,6 +327,59 @@ async function run() {
       };
 
       const result = await ticketCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
+    // get all Requested bookings for showing vendor
+    app.get("/req-bookings", async (req, res) => {
+      const cluster = bookingCollection.find();
+      const result = await cluster.toArray();
+      res.send(result);
+    });
+
+    // get all tickets for individual user
+    app.get("/bookings", async (req, res) => {
+      const { email } = req.query;
+      const query = { userEmail: email };
+
+      const result = await db
+        .collection("bookings")
+        .aggregate([
+          {
+            $match: { userEmail: email },
+          },
+          {
+            $lookup: {
+              from: "tickets",
+              localField: "ticketId",
+              foreignField: "_id",
+              as: "ticketBooingCombineData",
+            },
+          },
+        ])
+        .toArray();
+
+      // const cluster = bookingCollection.find(query);
+      // const result = await cluster.toArray();
+
+      res.send(result);
+    });
+
+    // bookings create api
+    app.post("/bookings", async (req, res) => {
+      const { bkTicketId, bkTotalPrice, bkuserEmail, bkuserTicketQuantity } =
+        req.body;
+
+      const doc = {
+        ticketId: new ObjectId(bkTicketId),
+        totalPrice: Number(bkTotalPrice),
+        userEmail: bkuserEmail,
+        ticketQuantity: Number(bkuserTicketQuantity),
+        status: "pending",
+        payment: "pending",
+      };
+
+      const result = await bookingCollection.insertOne(doc);
       res.send(result);
     });
 
