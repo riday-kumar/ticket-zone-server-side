@@ -4,6 +4,8 @@ const app = express();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 const port = process.env.PORT || 5000;
+const stripe = require("stripe")(process.env.STRIPE_SECRET);
+
 const dns = require("dns");
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
@@ -399,6 +401,99 @@ async function run() {
 
       const result = await bookingCollection.insertOne(doc);
       res.send(result);
+    });
+
+    // payment related apis
+    app.post("/create-checkout-session", async (req, res) => {
+      const paymentInfo = req.body;
+      const amount = parseInt(paymentInfo.cost) * 100;
+
+      const session = await stripe.checkout.sessions.create({
+        line_items: [
+          {
+            price_data: {
+              currency: "BDT",
+              unit_amount: amount,
+              product_data: {
+                name: paymentInfo.ticketName,
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        customer_email: paymentInfo.bookingEmail,
+        mode: "payment",
+        metadata: {
+          bookingId: paymentInfo.bookingId,
+          ticketId: paymentInfo.ticketId,
+          bookingQuantity: paymentInfo.bookingQuantity,
+        },
+        success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancel`,
+      });
+
+      // console.log(session);
+      res.send({ url: session.url });
+    });
+
+    app.patch("/verify-payment-success", async (req, res) => {
+      const sessionId = req.query.session_id;
+      // console.log("session id", sessionId);
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      // console.log("session get", session);
+      if (session.payment_status === "paid") {
+        const bookingId = session.metadata.bookingId;
+        const ticketId = session.metadata.ticketId;
+        const bookingQuantity = Number(session.metadata.bookingQuantity);
+
+        const queryForBookingId = { _id: new ObjectId(bookingId) };
+        const findBooking = await bookingCollection.findOne(queryForBookingId);
+
+        if (!findBooking) {
+          return res.send({ message: "Booking is not get" });
+        }
+
+        if (findBooking.payment === "paid") {
+          return res.send({ message: "Already Paid" });
+        }
+
+        const queryForTicketId = {
+          _id: new ObjectId(ticketId),
+          ticketQuantity: {
+            $gte: bookingQuantity,
+          },
+        };
+        const updateTicket = {
+          $inc: {
+            ticketQuantity: -bookingQuantity,
+          },
+        };
+        // reduce quantity from ticket
+        const updateTicketResult = await ticketCollection.updateOne(
+          queryForTicketId,
+          updateTicket,
+        );
+
+        if (updateTicketResult.modifiedCount === 0) {
+          return res.send({ message: "insufficient ticket" });
+        }
+
+        // we will update payment status in the booking collection
+        const updateBooking = {
+          $set: {
+            payment: "paid",
+            paymentDate: new Date(),
+          },
+        };
+        const updateBookingResult = await bookingCollection.updateOne(
+          queryForBookingId,
+          updateBooking,
+        );
+
+        return res.status(200).send({ success: true });
+      }
+
+      res.send({ success: false });
     });
 
     await client.db("admin").command({ ping: 1 });
