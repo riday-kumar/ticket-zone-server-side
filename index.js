@@ -337,6 +337,24 @@ async function run() {
       res.send(result);
     });
 
+    app.patch("/req-bookings/:id", async (req, res) => {
+      const id = req.params.id;
+      const reqMsg = req.query.msg;
+
+      const filter = {
+        _id: new ObjectId(id),
+      };
+
+      const updateDoc = {
+        $set: {
+          status: reqMsg,
+        },
+      };
+
+      const result = await bookingCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
     // get all tickets for individual user
     app.get("/bookings", async (req, res) => {
       const { email } = req.query;
