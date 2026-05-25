@@ -36,7 +36,7 @@ async function run() {
     const userCollection = db.collection("users");
     const ticketCollection = db.collection("tickets");
     const bookingCollection = db.collection("bookings");
-    const transactionHistory = db.collection("transactionHistory");
+    const transactionHistoryCollection = db.collection("transactionHistory");
 
     // user role
     app.get("/user/role", async (req, res) => {
@@ -487,7 +487,7 @@ async function run() {
         const updateBooking = {
           $set: {
             payment: "paid",
-            paymentDate: new Date(),
+            paymentDate: new Date().toLocaleDateString(),
           },
         };
         const updateBookingResult = await bookingCollection.updateOne(
@@ -501,15 +501,27 @@ async function run() {
           transactionId: session.payment_intent,
           amount: totalCost,
           ticketTitle: bookingTicketName,
-          paymentDate: new Date(),
+          paymentDate: new Date().toLocaleDateString(),
         };
         const makeTransaction =
-          await transactionHistory.insertOne(newTransaction);
+          await transactionHistoryCollection.insertOne(newTransaction);
 
-        return res.status(200).send({ success: true });
+        return res.status(201).send({ success: true });
       }
 
       res.send({ success: false });
+    });
+
+    app.get("/my-transaction", async (req, res) => {
+      const email = req.query.email;
+
+      const findEmail = {
+        bookingEmail: email,
+      };
+
+      const cursor = transactionHistoryCollection.find(findEmail);
+      const result = await cursor.toArray();
+      res.send(result);
     });
 
     await client.db("admin").command({ ping: 1 });
