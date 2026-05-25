@@ -1,3 +1,4 @@
 node_modules
 .env
 dist
+fb_admin_sdk.json
