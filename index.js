@@ -36,6 +36,7 @@ async function run() {
     const userCollection = db.collection("users");
     const ticketCollection = db.collection("tickets");
     const bookingCollection = db.collection("bookings");
+    const transactionHistory = db.collection("transactionHistory");
 
     // user role
     app.get("/user/role", async (req, res) => {
@@ -427,6 +428,8 @@ async function run() {
           bookingId: paymentInfo.bookingId,
           ticketId: paymentInfo.ticketId,
           bookingQuantity: paymentInfo.bookingQuantity,
+          cost: paymentInfo.cost,
+          ticketName: paymentInfo.ticketName,
         },
         success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancel`,
@@ -445,6 +448,8 @@ async function run() {
         const bookingId = session.metadata.bookingId;
         const ticketId = session.metadata.ticketId;
         const bookingQuantity = Number(session.metadata.bookingQuantity);
+        const totalCost = session.metadata.cost;
+        const bookingTicketName = session.metadata.ticketName;
 
         const queryForBookingId = { _id: new ObjectId(bookingId) };
         const findBooking = await bookingCollection.findOne(queryForBookingId);
@@ -489,6 +494,17 @@ async function run() {
           queryForBookingId,
           updateBooking,
         );
+
+        // now create a transaction table
+        const newTransaction = {
+          bookingEmail: session.customer_email,
+          transactionId: session.payment_intent,
+          amount: totalCost,
+          ticketTitle: bookingTicketName,
+          paymentDate: new Date(),
+        };
+        const makeTransaction =
+          await transactionHistory.insertOne(newTransaction);
 
         return res.status(200).send({ success: true });
       }
