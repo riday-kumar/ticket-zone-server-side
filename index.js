@@ -124,16 +124,7 @@ async function run() {
     app.patch("/users/:id", verifyFBToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const role = req.query.role;
-      // console.log("id", id);
-      const email = req.decodedEmail;
-      // find that user and check he is admin or not
-      const isCheck = await userCollection.find({ email });
-      if (isCheck.role !== "admin") {
-        return res.send({
-          message: "You are not eligible for changing the role",
-        });
-      }
-      // console.log(id);
+
       const filter = { _id: new ObjectId(id) };
       const document = {
         $set: {
