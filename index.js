@@ -11,7 +11,12 @@ dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
 var admin = require("firebase-admin");
 
-var serviceAccount = require("./fb_admin_sdk.json");
+const decoded = Buffer.from(
+  process.env.FIREBASE_SERVICE_KEY,
+  "base64",
+).toString("utf8");
+const serviceAccount = JSON.parse(decoded);
+
 const { getAuth } = require("firebase-admin/auth");
 
 admin.initializeApp({
@@ -65,7 +70,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
 
     const db = client.db("ticketsZone");
     const userCollection = db.collection("users");
@@ -119,7 +124,8 @@ async function run() {
     app.patch("/users/:id", verifyFBToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const role = req.query.role;
-      const email = req.query.email;
+      // console.log("id", id);
+      const email = req.decodedEmail;
       // find that user and check he is admin or not
       const isCheck = await userCollection.find({ email });
       if (isCheck.role !== "admin") {
@@ -172,8 +178,8 @@ async function run() {
       res.send(result);
     });
 
-    // get single ticket (vendor)
-    app.get("/tickets/:id", verifyFBToken, verifyVendor, async (req, res) => {
+    // get single ticket for booking
+    app.get("/tickets/:id", verifyFBToken, async (req, res) => {
       const id = req.params.id;
       // console.log(id);
       const filter = { _id: new ObjectId(id) };
@@ -651,7 +657,7 @@ async function run() {
       },
     );
 
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log("successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
